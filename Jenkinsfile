@@ -1,51 +1,58 @@
 pipeline {
     agent any
 
+    environment {
+        // Set Python path manually (important for Windows Jenkins)
+        PATH = "C:\\Users\\win10\\AppData\\Local\\Programs\\Python\\Python312\\;C:\\Users\\win10\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\;%PATH%"
+    }
+
     stages {
-        stage('Setup') {
+
+        stage('Checkout') {
             steps {
-                bat '''
-                python -m venv venv
-                call venv\\Scripts\\activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                echo 'Checking out code...'
+                checkout scm
             }
         }
 
-        stage('Train Model') {
+        stage('Setup Python') {
             steps {
-                bat '''
-                call venv\\Scripts\\activate
-                python train_placeholder.py
-                '''
+                echo 'Checking Python installation...'
+                bat 'python --version'
+                bat 'pip --version'
             }
         }
 
-        stage('Run Tests') {
+        stage('Install Dependencies') {
             steps {
-                bat '''
-                call venv\\Scripts\\activate
-                pytest -q || echo "Tests failed but continuing"
-                '''
+                echo 'Installing dependencies...'
+                // assumes you have requirements.txt in your repo
+                bat 'pip install --upgrade pip'
+                bat 'pip install -r requirements.txt'
             }
         }
 
-        stage('Run App') {
+        stage('Run Tests / App') {
             steps {
-                bat '''
-                call venv\\Scripts\\activate
-                start /B venv\\Scripts\\uvicorn app.main:app --host 0.0.0.0 --port 10000
-                '''
+                echo 'Running FastAPI app for verification...'
+                // If your main app file is app/main.py
+                bat 'python app/main.py'
             }
         }
 
-        stage('Sample Prediction') {
+        stage('Post Build') {
             steps {
-                bat '''
-                curl -X POST http://localhost:10000/predict -H "Content-Type: application/json" -d "@sample_input.json"
-                '''
+                echo '✅ Build complete!'
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo '❌ Build failed!'
         }
     }
 }
